@@ -14,6 +14,26 @@ const storeSchema = new mongoose.Schema({
     trim: true,
   },
   tags: [String],
+  created: {
+    type: Date,
+    default: Date.now,
+  },
+  location: {
+    type: {
+      type: String,
+      defeault: 'Point',
+    },
+    coordinates: [
+      {
+        type: Number,
+        required: 'You must supply coordinates',
+      },
+    ],
+    address: {
+      type: String,
+      required: 'You must supply an address!',
+    },
+  },
 });
 
 // Pre-save hook to create a slug
