@@ -1,6 +1,23 @@
 const mongoose = require('mongoose');
 
 const Store = mongoose.model('Store'); // already imported via app.js
+const multer = require('multer');
+const jimp = require('jimp');
+const uuid = require('uuid');
+
+const multerOptions = {
+  // - store file in memory b/c will resize prior to upload
+  storage: multer.memoryStorage(),
+  fileFilter(req, file, next) {
+    // - mimetype will inform what type of photo it is
+    const isPhoto = file.mimetype.startsWith('image/');
+    if (isPhoto) {
+      next(null, true);
+    } else {
+      next({ message: "That file type isn't allowed" }, false);
+    }
+  },
+};
 
 exports.homePage = (req, res) => {
   res.render('index');
@@ -10,6 +27,27 @@ exports.addStore = (req, res) => {
   res.render('editStore', {
     title: 'Add Store',
   });
+};
+
+// reads file into memory
+exports.upload = multer(multerOptions).single('photo');
+
+// resize photo
+exports.resize = async (req, res, next) => {
+  // check if there is no new file to resize
+  if (!req.file) {
+    next(); // skip to next middleware
+    return;
+  }
+  const extension = req.file.mimetype.split('/')[1];
+  // create unique name for file
+  req.body.photo = `${uuid.v4()}.${extension}`;
+  // resize photo
+  const photo = await jimp.read(req.file.buffer);
+  await photo.resize(800, jimp.AUTO); // w: 800 h: auto
+  await photo.write(`./public/uploads/${req.body.photo}`);
+  // once we have written the photo to our filesystem, keep going!
+  next();
 };
 
 exports.createStore = async (req, res) => {
@@ -50,4 +88,12 @@ exports.updateStore = async (req, res) => {
   );
   // 2. Redirect to store and flash success
   res.redirect(`/stores/${store._id}/edit`);
+};
+
+exports.getStoreBySlug = async (req, res, next) => {
+  const store = await Store.findOne({ slug: req.params.slug });
+  if (!store) {
+    return next();
+  }
+  res.render('store', { title: store.name, store });
 };
