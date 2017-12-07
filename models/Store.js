@@ -38,15 +38,34 @@ const storeSchema = new mongoose.Schema({
 });
 
 // Pre-save hook to create a slug
-storeSchema.pre('save', function(next) {
+storeSchema.pre('save', async function(next) {
   // need 'this' cannot be arrow
   if (!this.isModified('name')) {
     next(); // skip it
     return; // stop the function from running
   }
   this.slug = slug(this.name);
+  // Make more resiliant so slugs are unique
+  const slugRegEx = new RegExp(`^(${this.slug})((-[0-9]*$)?)`, 'i');
+  // this.constructor is equal to 'Store'
+  const storesWithSlug = await this.constructor.find({ slug: slugRegEx });
+  // increment up if slug exists
+  if (storesWithSlug.length) {
+    this.slug = `${this.slug}-${storesWithSlug.length + 1}`;
+  }
   next();
-  // TODO make more resiliant so slugs are unique
 });
+
+// new method created with .statics
+storeSchema.statics.getTagsList = function() {
+  return this.aggregate([
+    // split by tags
+    { $unwind: '$tags' },
+    // group by tags
+    { $group: { _id: '$tags', count: { $sum: 1 } } },
+    // descending
+    { $sort: { count: -1 } },
+  ]);
+};
 
 module.exports = mongoose.model('Store', storeSchema);
