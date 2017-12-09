@@ -21,6 +21,14 @@ const userSchema = new Schema({
     required: 'Please supply a name.',
     trim: true,
   },
+  resetPasswordToken: String,
+  resetPasswordExpires: Date,
+});
+
+// handle gravatar lookup and embed into page
+userSchema.virtual('gravatar').get(function() {
+  const hash = md5(this.email);
+  return `https://gravatar.com/avatar/${hash}?s=200`;
 });
 
 // handles our password
