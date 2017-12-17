@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+const User = mongoose.model('User');
 const Store = mongoose.model('Store'); // already imported via app.js
 const multer = require('multer');
 const jimp = require('jimp');
@@ -156,4 +157,20 @@ exports.mapStores = async (req, res) => {
 
 exports.mapPage = (req, res) => {
   res.render('map', { title: 'Map' });
+};
+
+exports.heartStore = async (req, res) => {
+  const hearts = req.user.hearts.map(obj => obj.toString());
+  // pull: remove; addToSet: add unique
+  const operator = hearts.includes(req.params.id) ? '$pull' : '$addToSet';
+  // [] required to compute property name
+  const user = await User.findByIdAndUpdate(req.user._id, { [operator]: { hearts: req.params.id } }, { new: true });
+  res.json(user);
+};
+
+exports.getHearts = async (req, res) => {
+  // const stores = await User.find({ email: req.user.email }).populate('hearts');
+  const stores = await Store.find({ _id: { $in: req.user.hearts } });
+  // res.json(stores);
+  res.render('stores', { title: 'Hearted Stores', stores });
 };
