@@ -42,6 +42,12 @@ const storeSchema = new mongoose.Schema({
   },
 });
 
+// Define our indexes
+storeSchema.index({
+  name: 'text',
+  description: 'text',
+});
+
 // Pre-save hook to create a slug
 storeSchema.pre('save', async function(next) {
   // need 'this' cannot be arrow
