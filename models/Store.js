@@ -2,45 +2,52 @@ const mongoose = require('mongoose');
 const slug = require('slugs');
 
 mongoose.Promise = global.Promise; // use ES6 Promises
-const storeSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    trim: true,
-    required: 'Please enter a store name!', // behaves as true
-  },
-  slug: String,
-  description: {
-    type: String,
-    trim: true,
-  },
-  tags: [String],
-  created: {
-    type: Date,
-    default: Date.now,
-  },
-  location: {
-    type: {
+const storeSchema = new mongoose.Schema(
+  {
+    name: {
       type: String,
-      defeault: 'Point',
+      trim: true,
+      required: 'Please enter a store name!', // behaves as true
     },
-    coordinates: [
-      {
-        type: Number,
-        required: 'You must supply coordinates',
+    slug: String,
+    description: {
+      type: String,
+      trim: true,
+    },
+    tags: [String],
+    created: {
+      type: Date,
+      default: Date.now,
+    },
+    location: {
+      type: {
+        type: String,
+        defeault: 'Point',
       },
-    ],
-    address: {
-      type: String,
-      required: 'You must supply an address!',
+      coordinates: [
+        {
+          type: Number,
+          required: 'You must supply coordinates',
+        },
+      ],
+      address: {
+        type: String,
+        required: 'You must supply an address!',
+      },
+    },
+    photo: String,
+    author: {
+      type: mongoose.Schema.ObjectId,
+      ref: 'User',
+      required: 'You must supply an author',
     },
   },
-  photo: String,
-  author: {
-    type: mongoose.Schema.ObjectId,
-    ref: 'User',
-    required: 'You must supply an author',
-  },
-});
+  // virtuals are hidden in json and objects in default;  this will show
+  {
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
+);
 
 // Define our indexes
 storeSchema.index({
@@ -82,5 +89,52 @@ storeSchema.statics.getTagsList = function () {
     { $sort: { count: -1 } },
   ]);
 };
+
+storeSchema.statics.getTopStores = function () {
+  return this.aggregate([
+    // Lookup stores from the Review model and populate their review as 'reviews'
+    {
+      $lookup: {
+        from: 'reviews',
+        localField: '_id',
+        foreignField: 'store',
+        as: 'reviews',
+      },
+    },
+    // filter for only items that have 2 or more reviews (reviews.1 is index 1 in an array)
+    { $match: { 'reviews.1': { $exists: true } } },
+    // add the average reviews field (project)
+    {
+      $project: {
+        // $$ROOT is equal to the original document
+        photo: '$$ROOT.photo',
+        name: '$$ROOT.name',
+        reviews: '$$ROOT.reviews',
+        slug: '$$ROOT.slug',
+        // $reviews means it is a field in the data piped in
+        averageRating: { $avg: '$reviews.rating' },
+      },
+    },
+    // sort it by our newfield, highest first
+    { $sort: { averageRating: -1 } },
+    // limit to 10 max
+    { $limit: 10 },
+  ]);
+};
+
+// create a virtual populate with Reviews model (mongoose-specific)
+storeSchema.virtual('reviews', {
+  ref: 'Review', // model to link
+  localField: '_id', // field on the Store
+  foreignField: 'store', // field on the Review
+});
+
+function autopopulate(next) {
+  this.populate('reviews');
+  next();
+}
+
+storeSchema.pre('find', autopopulate);
+storeSchema.pre('findOne', autopopulate);
 
 module.exports = mongoose.model('Store', storeSchema);
