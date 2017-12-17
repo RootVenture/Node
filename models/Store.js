@@ -48,8 +48,12 @@ storeSchema.index({
   description: 'text',
 });
 
+storeSchema.index({
+  location: '2dsphere',
+});
+
 // Pre-save hook to create a slug
-storeSchema.pre('save', async function(next) {
+storeSchema.pre('save', async function (next) {
   // need 'this' cannot be arrow
   if (!this.isModified('name')) {
     next(); // skip it
@@ -68,7 +72,7 @@ storeSchema.pre('save', async function(next) {
 });
 
 // new method created with .statics
-storeSchema.statics.getTagsList = function() {
+storeSchema.statics.getTagsList = function () {
   return this.aggregate([
     // split by tags
     { $unwind: '$tags' },
