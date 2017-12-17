@@ -9,6 +9,7 @@ const { catchErrors } = require('../handlers/errorHandlers');
 
 router.get('/', catchErrors(storeController.getStores));
 router.get('/stores', catchErrors(storeController.getStores));
+router.get('/stores/page/:page', catchErrors(storeController.getStores));
 
 // validate user is logged in before allowing them to log in
 router.get('/add', authController.isLoggedIn, storeController.addStore);
